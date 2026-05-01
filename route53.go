@@ -12,12 +12,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/route53/types"
 )
 
+const DefaultDeleteCacheTTL = 5 * time.Minute
+const DefaultAddCacheTTL = 5 * time.Minute
+
 type Route53 struct {
-	svc          *route53.Client
-	changes      []*route53Change
-	hostedZoneID *string
-	zoneName     string
-	cache        *ttlcache.Cache
+	svc            *route53.Client
+	changes        []*route53Change
+	hostedZoneID   *string
+	zoneName       string
+	cache          *ttlcache.Cache
+	addCacheTTL    time.Duration
+	deleteCacheTTL time.Duration
 }
 
 type route53Change struct {
@@ -58,6 +63,18 @@ func NewRoute53(ctx context.Context, cfg *Config) *Route53 {
 	r.cache.SetTTL(5 * time.Minute)
 	r.cache.SkipTTLExtensionOnHit(true)
 
+	addCacheTTL := cfg.Link.AddCacheTTL
+	if addCacheTTL == 0 {
+		addCacheTTL = DefaultAddCacheTTL
+	}
+	r.addCacheTTL = addCacheTTL
+
+	deleteCacheTTL := cfg.Link.DeleteCacheTTL
+	if deleteCacheTTL == 0 {
+		deleteCacheTTL = DefaultDeleteCacheTTL
+	}
+	r.deleteCacheTTL = deleteCacheTTL
+
 	return r
 }
 
@@ -74,7 +91,7 @@ func (r *Route53) Add(name, addr string) {
 		slog.Debug(f("%s is cached. skip", key))
 		return
 	}
-	r.cache.Set(key, nil)
+	r.cache.SetWithTTL(key, nil, r.addCacheTTL)
 
 	slog.Debug(f("route53 change: %s", change.String()))
 	r.changes = append(r.changes, change)
@@ -94,7 +111,7 @@ func (r *Route53) Delete(name string, addr string) {
 		slog.Debug(f("%s is cached. skip", key))
 		return
 	}
-	r.cache.Set(key, nil)
+	r.cache.SetWithTTL(key, nil, r.deleteCacheTTL)
 
 	slog.Debug(f("route53 change: %s", change.String()))
 	r.changes = append(r.changes, change)

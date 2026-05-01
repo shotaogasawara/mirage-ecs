@@ -155,8 +155,10 @@ type Host struct {
 }
 
 type Link struct {
-	HostedZoneID           string   `yaml:"hosted_zone_id"`
-	DefaultTaskDefinitions []string `yaml:"default_task_definitions"`
+	HostedZoneID           string        `yaml:"hosted_zone_id"`
+	DefaultTaskDefinitions []string      `yaml:"default_task_definitions"`
+	AddCacheTTL            time.Duration `yaml:"add_cache_ttl"`
+	DeleteCacheTTL         time.Duration `yaml:"delete_cache_ttl"`
 }
 
 type Listen struct {
